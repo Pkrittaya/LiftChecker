@@ -13,7 +13,7 @@ const showDemoBanner = ref(true)
 const links = computed(() => {
   const base = [
     { name: 'lifts', label: 'รายการลิฟท์', icon: 'mdi-elevator-passenger' },
-    { name: 'scan', label: 'สแกน QR', icon: 'mdi-qrcode-scan' },
+    // { name: 'scan', label: 'สแกน QR', icon: 'mdi-qrcode-scan' },
   ]
   if (auth.user?.role === 'admin' || auth.user?.role === 'super_admin') {
     base.push({ name: 'users', label: 'จัดการผู้ใช้', icon: 'mdi-account-group' })
