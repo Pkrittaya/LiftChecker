@@ -40,6 +40,7 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024
 const hasCamera = ref(false)
 const cameraError = ref('')
 const scanning = ref(true)
+const cameraEnabled = ref(false)
 const scanMode = ref('front')
 const scanMessage = ref('')
 const frontScan = ref({ at: '', by: '' })
@@ -166,6 +167,11 @@ function resetScans() {
   scanMode.value = 'front'
   scanMessage.value = ''
   scanning.value = true
+  cameraEnabled.value = true
+}
+
+function toggleCamera() {
+  cameraEnabled.value = !cameraEnabled.value
 }
 
 async function saveScanProgress() {
@@ -346,10 +352,26 @@ async function submit() {
           สถานะการตรวจ: <b>{{ processStatus }}</b>
           <span v-if="draftSaving" class="ml-2">กำลังบันทึก...</span>
         </v-alert>
-        <div v-if="hasCamera && !cameraError && scanMode" class="scan-wrap mb-3">
-          <QrcodeStream :paused="!scanning" @detect="onQrDetect" @error="handleCameraError" class="scan-stream" />
-          <div class="scan-overlay"><div class="scan-frame" /></div>
-          <v-chip class="scan-status" color="primary">กำลังรอ {{ scanLabel }}</v-chip>
+        <div v-if="hasCamera && !cameraError && scanMode" class="mb-3">
+          <v-btn
+            v-if="scanMode"
+            :prepend-icon="cameraEnabled ? 'mdi-camera-off' : 'mdi-camera'"
+            :color="cameraEnabled ? 'error' : 'primary'"
+            variant="outlined"
+            size="small"
+            class="mb-2"
+            @click="toggleCamera"
+          >
+            {{ cameraEnabled ? 'ปิดกล้อง' : 'เปิดกล้อง' }}
+          </v-btn>
+          <div v-if="cameraEnabled" class="scan-wrap">
+            <QrcodeStream :paused="!scanning" @detect="onQrDetect" @error="handleCameraError" class="scan-stream" />
+            <div class="scan-overlay"><div class="scan-frame" /></div>
+            <v-chip class="scan-status" color="primary">กำลังรอ {{ scanLabel }}</v-chip>
+          </div>
+          <v-alert v-else type="info" density="compact" class="mt-2">
+            กล้องปิดอยู่ กรุณากรอกรหัสด้วยตนเอง หรือกดเปิดกล้องอีกครั้งเพื่อสแกน QR
+          </v-alert>
         </div>
         <v-alert v-else-if="cameraError" type="warning" density="compact" class="mb-3">
           ไม่สามารถเปิดกล้องได้ กรุณากรอกรหัส QR ด้วยตนเอง
