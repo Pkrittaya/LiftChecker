@@ -206,21 +206,21 @@ async function downloadPhoto(url) {
             {{ formatDate(report.created_at) }}
             <span v-if="report.reported_by"> · {{ report.reported_by }}</span>
           </v-card-subtitle>
-           <template #append>
-             <div class="d-flex align-center ga-2">
-               <v-chip :color="report.process_status === 'ดำเนินการแล้ว' ? 'success' : 'warning'" size="small" label>
-                 {{ report.process_status || 'กำลังดำเนินการ' }}
-               </v-chip>
-                <v-btn
-                  v-if="report.reported_by === auth.displayName || ['admin', 'super_admin'].includes(auth.user?.role)"
-                 icon="mdi-pencil-outline"
-                 size="small"
-                 variant="text"
-                 title="แก้ไขรายงาน"
-                 @click="router.push({ name: 'lift-report-edit', params: { id: liftId, reportId: report.id } })"
-               />
-             </div>
-           </template>
+               <template #append>
+              <div class="d-flex align-center ga-2">
+                <v-chip :color="report.process_status === 'ดำเนินการแล้ว' ? 'success' : 'warning'" size="small" label>
+                  {{ report.process_status || 'กำลังดำเนินการ' }}
+                </v-chip>
+                 <v-btn
+                   v-if="(report.reported_by === auth.displayName || ['admin', 'super_admin'].includes(auth.user?.role)) && !(report.process_status === 'ดำเนินการแล้ว' && !['admin', 'super_admin'].includes(auth.user?.role))"
+                  icon="mdi-pencil-outline"
+                  size="small"
+                  variant="text"
+                  title="แก้ไขรายงาน"
+                  @click="router.push({ name: 'lift-report-edit', params: { id: liftId, reportId: report.id } })"
+                />
+              </div>
+            </template>
         </v-card-item>
          <v-card-text v-if="report.notes" class="text-body-2">{{ report.notes }}</v-card-text>
          <v-card-text v-if="report.process_status" class="pt-0">

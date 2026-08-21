@@ -59,6 +59,8 @@ const processStatus = computed(() => frontScan.value.at && insideScan.value.at &
 const isAdmin = computed(() => ['admin', 'super_admin'].includes(auth.user?.role))
 const isOwner = computed(() => savedReportedBy.value === auth.displayName)
 const canEditReport = computed(() => isAdmin.value || isOwner.value)
+const isReportCompleted = computed(() => savedProcessStatus.value === 'ดำเนินการแล้ว')
+const isReadOnly = computed(() => isReportCompleted.value && !isAdmin.value)
 const scanLabel = computed(() => scanMode.value === 'front' ? 'QR ด้านหน้าลิฟท์' : 'QR ภายในลิฟท์')
 
 const liftId = route.params.id
@@ -95,6 +97,13 @@ onMounted(async () => {
       if (frontScan.value.at && insideScan.value.at) {
         scanMode.value = ''
         scanning.value = false
+      }
+      if (isReportCompleted.value && !isAdmin.value) {
+        error.value = 'ไม่สามารถแก้ไขรายงานที่ดำเนินการแล้วได้ (เฉพาะ Admin เท่านั้น)'
+        setTimeout(() => {
+          router.replace({ name: 'lift-detail', params: { id: liftId } })
+        }, 2000)
+        return
       }
     } catch (e) {
       error.value = e.message
@@ -211,7 +220,6 @@ function readFileAsDataURL(file) {
   })
 }
 
-// ตรวจว่าภาพ "ว่าง/ขาว/โปร่งใส" เกินไปหรือไม่ (ภาพถ่ายจริงควรมีเนื้อหาสี)
 async function isBlankImage(dataUrl) {
   try {
     const img = new Image()
@@ -228,7 +236,7 @@ async function isBlankImage(dataUrl) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     ctx.drawImage(img, 0, 0, w, h)
     const d = ctx.getImageData(0, 0, w, h).data
-    let blank = 0 // โปร่งใสหรือขาวจาง
+    let blank = 0
     let total = w * h
     for (let i = 0; i < d.length; i += 4) {
       const a = d[i + 3]
@@ -270,10 +278,6 @@ function openCamera() {
 async function submit() {
   if (submitting.value || draftSaving.value) return
   error.value = ''
-  // if (!isEditing && photos.value.length === 0) {
-  //   error.value = 'กรุณาแนบรูปถ่ายลิฟท์อย่างน้อย 1 รูป'
-  //   return
-  // }
   submitting.value = true
   try {
     if (!canEditReport.value && (isEditing || savedReportId.value) && processStatus.value === 'ดำเนินการแล้ว' && savedProcessStatus.value === 'ดำเนินการแล้ว') {
@@ -331,6 +335,10 @@ async function submit() {
       <b>{{ lift.name }}</b> ({{ lift.id }}) · {{ lift.building || '-' }} {{ lift.location || '' }}
     </v-alert>
 
+    <v-alert v-if="isReadOnly && isEditing" type="warning" density="compact" class="mb-4">
+      รายงานนี้ดำเนินการแล้ว คุณไม่มีสิทธิ์แก้ไข (เฉพาะ Admin เท่านั้น)
+    </v-alert>
+
     <v-card variant="outlined" class="mb-4" max-width="640">
       <v-card-title class="text-subtitle-1 font-weight-bold">1. สแกน QR ประจำจุด</v-card-title>
       <v-card-text>
@@ -386,7 +394,7 @@ async function submit() {
           @keyup.enter="acceptScan($event.target.value)"
         />
         <v-alert v-if="scanMessage" type="info" density="compact" class="mt-2">{{ scanMessage }}</v-alert>
-        <v-btn v-if="frontScan.at || insideScan.at" variant="text" size="small" class="mb-2" @click="resetScans">
+        <v-btn v-if="(frontScan.at || insideScan.at) && !isReadOnly" variant="text" size="small" class="mb-2" @click="resetScans">
           เริ่มสแกนใหม่
         </v-btn>
       </v-card-text>
@@ -406,7 +414,7 @@ async function submit() {
             <div v-for="(item, index) in group.items" :key="item.id" class="check-item">
               <div class="text-body-1 font-weight-medium">{{ index + 1 }}. {{ item.title }}</div>
               <div class="text-body-2 text-medium-emphasis mb-1">{{ item.text }}</div>
-              <v-radio-group v-model="item.result" inline density="compact" hide-details>
+              <v-radio-group v-model="item.result" inline density="compact" hide-details :disabled="isReadOnly">
                 <v-radio label="ผ่าน" value="ผ่าน" color="success" />
                 <v-radio label="ไม่ผ่าน" value="ไม่ผ่าน" color="error" />
               </v-radio-group>
@@ -438,15 +446,15 @@ async function submit() {
         <div class="d-flex flex-wrap ga-2 mb-3">
           <v-card v-for="(photo, i) in existingPhotos" :key="`existing-${photo}`" class="photo-item" variant="outlined">
             <DrivePhoto :photo-url="photo" class="existing-photo-preview" />
-            <v-btn icon="mdi-close" size="x-small" class="photo-remove" @click="removeExistingPhoto(i)" />
+            <v-btn v-if="!isReadOnly" icon="mdi-close" size="x-small" class="photo-remove" @click="removeExistingPhoto(i)" />
           </v-card>
           <v-card v-for="(photo, i) in photos" :key="i" class="photo-item" variant="outlined">
             <img :src="photo" alt="รูป" class="photo-preview" />
-            <v-btn icon="mdi-close" size="x-small" class="photo-remove" @click="removePhoto(i)" />
+            <v-btn v-if="!isReadOnly" icon="mdi-close" size="x-small" class="photo-remove" @click="removePhoto(i)" />
           </v-card>
 
            <v-sheet
-             v-if="existingPhotos.length + photos.length < 4"
+             v-if="existingPhotos.length + photos.length < 4 && !isReadOnly"
             class="photo-add"
             color="grey-lighten-4"
             rounded="lg"
@@ -482,6 +490,7 @@ async function submit() {
           counter
           maxlength="1000"
           hint="เช่น เสียงผิดปกติ ประตูเปิดไม่สนิท ฯลฯ"
+          :readonly="isReadOnly"
         />
       </v-card-text>
     </v-card>
@@ -494,9 +503,10 @@ async function submit() {
         size="large"
         @click="router.push({ name: 'lift-detail', params: { id: liftId } })"
       >
-        ยกเลิก
+        {{ isReadOnly ? 'กลับ' : 'ยกเลิก' }}
       </v-btn>
       <v-btn
+        v-if="!isReadOnly"
         color="primary"
         size="large"
         :loading="submitting"
